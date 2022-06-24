@@ -1,0 +1,5 @@
+include includes/listens;
+include includes/headers;
+include includes/logging;
+
+error_page 404 /404/;

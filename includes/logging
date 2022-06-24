@@ -1,0 +1,7 @@
+# Set up logging with a custom formatter that appends the HTTP Host header
+# to the end of the default nginx log entry
+
+# see conf.d/00-logging.conf for the mainplus log_format directive
+# /var/log/nginx/access.log is actually symlinked to stderr in the official
+# nginx Docker container.
+access_log  /var/log/nginx/access.log  mainplus;

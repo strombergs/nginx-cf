@@ -1,0 +1,7 @@
+# listen on all IP4 and IP6 addresses on ports 80 and 443
+
+# http://nginx.org/en/docs/http/ngx_http_core_module.html#listen
+
+listen          80;
+listen         443 ssl http2;
+listen    [::]:443 ssl http2;

@@ -1,0 +1,89 @@
+# For each site you want to add, copy this .conf file, give it a descriptive
+# name, remove the .example extension, and make sure it is in the
+# /etc/nginx/conf.d/sites directory of the container by using a bind mount or
+# copy it in somehow.
+
+# make a uniquely named upstream that points to a server host and port or a
+# Unix socket you want the name should be the name of the container if you're
+# in the same Docker network.
+upstream example-socket {
+    server example:8000;
+}
+
+# choose what domains can get an Access-Control-Allow-Origin header
+# Find and replace all instances of $example_cors in this conf file to a unique name.
+# Set the regex to something that would match what you want to return the Origin
+# header on. You could also just replace "*" for every instance of $example_cors
+# on this page if you don't care about leechers.
+map $http_origin $example_cors {
+    ~^https?://(.+\.)?example\.com(:\d+)?$ $http_origin;
+    default "";
+}
+
+# The naked (non-WWW) domain. Used for serving the static assets usually.
+# Any request that doesn't start with /static/ redirects to the www. version of
+# the site.
+server {
+    include includes/pyapp-common;
+    server_name example.com;
+    
+    root /var/www/example/static/root;
+
+    location / {
+        return 301 https://www.example.com$request_uri;
+    }
+
+    location /static/ {
+        root /var/www/example/static/;
+        add_header 'Access-Control-Allow-Origin' $example_cors;
+        etag on;
+        expires 7d;
+    }
+
+    location ~ /static/root/(.*)$ {
+        return 301 https://www.example.com/$1;
+    }
+
+    location = /404/ {
+        internal;
+        include includes/proxy;
+        proxy_pass http://example-socket;
+    }
+}
+
+# the www domain for the site. For the main content. Any path that starts with
+# /static/ should be redirected to the non-WWW site. We keep our static site
+# separate so that no cookies are sent requesting the static assets (because
+# any cookies we set would be on the www. side only).
+server {
+    include includes/pyapp-common;
+    server_name www.example.com;
+
+    root /var/www/example/static/root;
+
+    # try to get a static file in the root folder or send to Python
+    location / {
+        try_files $uri @python;
+    }
+
+    # static requests should be redirected to the naked (non-WWW) domain
+    location /static/ {
+        return 301 https://example.com$request_uri;
+    }
+
+    #
+    location ~ /static/root/(.*)$ {
+        return 301 https://www.example.com/$1;
+    }
+
+    location @python {
+        include includes/proxy;
+        proxy_pass http://example-socket;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|woff|woff2)$ {
+        add_header 'Access-Control-Allow-Origin' $example_cors;
+        expires max;
+        log_not_found off;
+    }
+}
